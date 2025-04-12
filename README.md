@@ -1,13 +1,13 @@
 # AWS Savings Plans 検証ツール
 
-このツールは、AWSの利用状況レポート（CSV）から、Fargate、EC2、Lambdaの使用状況を抽出し、Savings Plansの適用状況を確認するためのものです。
+このツールは、AWS Savings Plansの利用状況を分析し、最適な契約プランを提案するためのツールです。
 
 ## 機能
 
-- Fargate、EC2、Lambdaの使用状況を抽出
-- Savings Plansの適用状況（SavingsPlanNegation）の確認
-- 使用状況のソート（usage_type, item_description）
-- CSVファイルへの出力
+- AWS Cost and Usage Report (CUR) から利用データを抽出
+- Fargate、EC2、Lambdaの利用状況を分析
+- Savings Plansの割引率を計算
+- 最適な契約プランを提案
 
 ## インストール
 
@@ -17,44 +17,86 @@ pip install -r requirements.txt
 
 ## 使用方法
 
-### 基本的な使用方法
+### 利用データの抽出
 
 ```bash
-python main.py all <CSVファイル>
+python main.py all <cur_file_path>
 ```
 
-### オプション
-
-- `--no-savings-plan`: SavingsPlanNegationを除外して表示
-- `--output-dir <ディレクトリ>`: 結果をCSVファイルとして出力
-
-### 例
+### Savings Plansの割引率計算
 
 ```bash
-# すべての使用状況を表示
-python main.py all monthly-report-2024-12-540638230969.csv
-
-# SavingsPlanNegationを除外して表示
-python main.py all monthly-report-2024-12-540638230969.csv --no-savings-plan
-
-# 結果をCSVファイルとして出力
-python main.py all monthly-report-2024-12-540638230969.csv --output-dir output
+python main.py test-savings-plans <instance_type> [--term {1 year,3 year}] [--payment-option {All Upfront,Partial Upfront,No Upfront}] [--region <region>] [--operating-system <os>] [--tenancy {Shared,Dedicated,Host}]
 ```
 
-## 出力形式
+例：
+```bash
+# t3.mediumインスタンスの1年契約、前払いなしの割引率を計算
+python main.py test-savings-plans t3.medium
 
-出力は以下の列を含むテーブル形式で表示されます：
+# t3.mediumインスタンスの3年契約、全額前払いの割引率を計算
+python main.py test-savings-plans t3.medium --term "3 year" --payment-option "All Upfront"
 
-- month: 月
-- aws_account_id: AWSアカウントID
-- usage_type: 使用タイプ
-- item_description: アイテムの説明
-- cost: コスト
+# Windows OS、専有テナンシーの割引率を計算
+python main.py test-savings-plans t3.medium --operating-system "Windows" --tenancy "Dedicated"
+```
+
+### サポートされているパラメータ
+
+#### リージョン
+- US East (N. Virginia)
+- US West (Oregon)
+- EU (Ireland)
+- Asia Pacific (Tokyo)
+- その他多数のリージョン
+
+#### オペレーティングシステム
+- Linux
+- RHEL
+- SUSE
+- Red Hat Enterprise Linux with HA
+- Windows
+- Ubuntu Pro
+- Windows with SQL Web
+- Linux with SQL Web
+- その他多数のOS
+
+#### テナンシー
+- Shared
+- Dedicated
+- Host
+
+## 出力例
+
+### 利用データの抽出結果
+
+```
+Fargate Usage:
+┌─────────┬─────────────────┬──────────────────────────────┬──────────────────────────────────────┬──────────┐
+│ Month   │ AWS Account ID  │ Usage Type                   │ Item Description                     │ Cost     │
+├─────────┼─────────────────┼──────────────────────────────┼──────────────────────────────────────┼──────────┤
+│ 2024-12 │ 123456789012    │ Fargate-vCPU-Hours:perCPU    │ Amazon Elastic Container Service     │ $0.00    │
+└─────────┴─────────────────┴──────────────────────────────┴──────────────────────────────────────┴──────────┘
+
+EC2 Usage:
+┌─────────┬─────────────────┬──────────────────────────────┬──────────────────────────────────────┬──────────┐
+│ Month   │ AWS Account ID  │ Usage Type                   │ Item Description                     │ Cost     │
+├─────────┼─────────────────┼──────────────────────────────┼──────────────────────────────────────┼──────────┤
+│ 2024-12 │ 123456789012    │ BoxUsage:t3.medium          │ Amazon Elastic Compute Cloud         │ $0.00    │
+└─────────┴─────────────────┴──────────────────────────────┴──────────────────────────────────────┴──────────┘
+```
+
+### 割引率計算結果
+
+```
+割引率: 0.28 (28%)
+```
 
 ## 注意事項
 
-- CSVファイルはGitの管理対象外です（`.gitignore`に設定済み）
-- 出力ディレクトリもGitの管理対象外です（`.gitignore`に設定済み）
+- 割引率は、AWSの公開APIから取得した価格情報に基づいて計算されます
+- 実際の割引率は、AWSの価格改定により変更される可能性があります
+- 計算結果は参考値としてご利用ください
 
 ## ライセンス
 
