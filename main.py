@@ -339,8 +339,8 @@ def get_usage_data(
 
             # 指定された列のみを選択
             selected_columns = [
-                "month",
                 "aws_account_id",
+                "month",
                 "usage_type",
                 "item_description",
                 "cost",
@@ -349,7 +349,7 @@ def get_usage_data(
 
             # グループ化の処理
             if group_by:
-                group_keys = ["month", "aws_account_id"]
+                group_keys = ["aws_account_id", "month"]
                 if GroupBy.USAGE_TYPE in group_by:
                     group_keys.append("usage_type")
                 if GroupBy.ITEM_DESCRIPTION in group_by:
