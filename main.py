@@ -297,7 +297,7 @@ def create_usage_table(df: pd.DataFrame, title: str) -> Table:
 def get_usage_data(
     csv_file: str,
     usage_type: str,
-    no_negation: bool = False,
+    negation: bool = True,
     group_by: List[GroupBy] = None,
 ) -> pd.DataFrame:
     """
@@ -306,7 +306,7 @@ def get_usage_data(
     Args:
         csv_file (str): CSVファイルのパス
         usage_type (str): 抽出するusage_type
-        no_negation (bool, optional): SavingsPlanNegationを除外するかどうか
+        negation (bool, optional): SavingsPlanNegationを含めるかどうか
         group_by (List[GroupBy], optional): グループ化のキー（usage_type, item_description）
 
     Returns:
@@ -325,7 +325,7 @@ def get_usage_data(
             ]
 
             # SavingsPlanNegationのフィルタリング
-            if no_negation:
+            if not negation:
                 filtered_df = filtered_df[
                     ~filtered_df["item_description"].str.contains(
                         "SavingsPlanNegation", case=False, na=False
@@ -408,7 +408,7 @@ def aws_fargate(
     output_file: str = typer.Option(
         None, help="出力ファイルのパス（指定しない場合は表示のみ）"
     ),
-    no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
+    negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
@@ -417,7 +417,7 @@ def aws_fargate(
     CSVファイルを読み込み、usage_typeにFargateが含まれる行を抽出します
     """
     title = "Fargate使用状況"
-    df = get_usage_data(csv_file, "Fargate", no_negation, group_by)
+    df = get_usage_data(csv_file, "Fargate", negation, group_by)
 
     if output_file:
         df.to_csv(output_file, index=False)
@@ -432,7 +432,7 @@ def amazon_ec2(
     output_file: str = typer.Option(
         None, help="出力ファイルのパス（指定しない場合は表示のみ）"
     ),
-    no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
+    negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
@@ -441,7 +441,7 @@ def amazon_ec2(
     CSVファイルを読み込み、usage_typeにBoxが含まれる行を抽出します
     """
     title = "EC2使用状況"
-    df = get_usage_data(csv_file, "Box", no_negation, group_by)
+    df = get_usage_data(csv_file, "Box", negation, group_by)
 
     if output_file:
         df.to_csv(output_file, index=False)
@@ -456,7 +456,7 @@ def aws_lambda(
     output_file: str = typer.Option(
         None, help="出力ファイルのパス（指定しない場合は表示のみ）"
     ),
-    no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
+    negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
@@ -465,7 +465,7 @@ def aws_lambda(
     CSVファイルを読み込み、usage_typeにLambda-GBが含まれる行を抽出します
     """
     title = "Lambda使用状況"
-    df = get_usage_data(csv_file, "Lambda-GB", no_negation, group_by)
+    df = get_usage_data(csv_file, "Lambda-GB", negation, group_by)
 
     if output_file:
         df.to_csv(output_file, index=False)
@@ -480,7 +480,7 @@ def all(
     output_dir: str = typer.Option(
         None, help="出力ディレクトリのパス（指定しない場合は表示のみ）"
     ),
-    no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
+    negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
@@ -491,7 +491,7 @@ def all(
     # Fargateの抽出
     fargate_output = f"{output_dir}/fargate_usage.csv" if output_dir else None
     fargate_title = "Fargate使用状況"
-    fargate_df = get_usage_data(csv_file, "Fargate", no_negation, group_by)
+    fargate_df = get_usage_data(csv_file, "Fargate", negation, group_by)
     if fargate_output:
         fargate_df.to_csv(fargate_output, index=False)
         console.print(f"[green]Fargateの結果を保存しました:[/green] {fargate_output}")
@@ -501,7 +501,7 @@ def all(
     # EC2の抽出
     ec2_output = f"{output_dir}/ec2_usage.csv" if output_dir else None
     ec2_title = "EC2使用状況"
-    ec2_df = get_usage_data(csv_file, "Box", no_negation, group_by)
+    ec2_df = get_usage_data(csv_file, "Box", negation, group_by)
     if ec2_output:
         ec2_df.to_csv(ec2_output, index=False)
         console.print(f"[green]EC2の結果を保存しました:[/green] {ec2_output}")
@@ -511,7 +511,7 @@ def all(
     # Lambdaの抽出
     lambda_output = f"{output_dir}/lambda_usage.csv" if output_dir else None
     lambda_title = "Lambda使用状況"
-    lambda_df = get_usage_data(csv_file, "Lambda-GB", no_negation, group_by)
+    lambda_df = get_usage_data(csv_file, "Lambda-GB", negation, group_by)
     if lambda_output:
         lambda_df.to_csv(lambda_output, index=False)
         console.print(f"[green]Lambdaの結果を保存しました:[/green] {lambda_output}")
