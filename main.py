@@ -1,6 +1,6 @@
 import calendar
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
 from urllib.parse import quote
 
 import pandas as pd
@@ -270,28 +270,43 @@ def get_compute_savings_plans_ec2_discount_rate(
         return None
 
 
-def create_usage_table(df: pd.DataFrame, title: str) -> Table:
+def create_usage_table(
+    df: pd.DataFrame, title: str, markdown: bool = False
+) -> Union[Table, str]:
     """
     使用状況のテーブルを作成します。
 
     Args:
         df (pd.DataFrame): 使用状況データ
         title (str): テーブルのタイトル
+        markdown (bool): markdown形式で出力するかどうか
 
     Returns:
-        Table: 作成されたテーブル
+        Union[Table, str]: 作成されたテーブルまたはmarkdown形式の文字列
     """
-    table = Table(title=title)
+    if markdown:
+        # markdown形式で出力
+        markdown_lines = []
+        markdown_lines.append(f"## {title}\n")
 
-    # 列の追加
-    for column in df.columns:
-        table.add_column(column)
+        # ヘッダー行
+        headers = df.columns.tolist()
+        markdown_lines.append("| " + " | ".join(headers) + " |")
+        markdown_lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
 
-    # 行の追加
-    for _, row in df.iterrows():
-        table.add_row(*[str(value) for value in row])
+        # データ行
+        for _, row in df.iterrows():
+            markdown_lines.append("| " + " | ".join(str(value) for value in row) + " |")
 
-    return table
+        return "\n".join(markdown_lines)
+    else:
+        # rich.table形式で出力
+        table = Table(title=title)
+        for column in df.columns:
+            table.add_column(column)
+        for _, row in df.iterrows():
+            table.add_row(*[str(value) for value in row])
+        return table
 
 
 def get_usage_data(
@@ -383,13 +398,14 @@ def get_usage_data(
         return pd.DataFrame()
 
 
-def display_usage(df: pd.DataFrame, title: str):
+def display_usage(df: pd.DataFrame, title: str, markdown: bool = False):
     """
     使用状況データを表示します
 
     Args:
         df (pd.DataFrame): 使用状況データ
         title (str): 表示するタイトル
+        markdown (bool): markdown形式で出力するかどうか
     """
     if df.empty:
         return
@@ -398,8 +414,13 @@ def display_usage(df: pd.DataFrame, title: str):
     console.print(f"[green]抽出された行数:[/green] {len(df)}")
 
     # テーブルを作成して表示
-    table = create_usage_table(df, title)
-    console.print(table)
+    if markdown:
+        markdown_table = create_usage_table(df, title, markdown=True)
+        # markdownのソースを直接出力
+        console.print(markdown_table)
+    else:
+        table = create_usage_table(df, title)
+        console.print(table)
 
 
 @app.command()
@@ -412,6 +433,7 @@ def aws_fargate(
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
+    markdown: bool = typer.Option(False, help="markdown形式で出力するかどうか"),
 ):
     """
     CSVファイルを読み込み、usage_typeにFargateが含まれる行を抽出します
@@ -423,7 +445,7 @@ def aws_fargate(
         df.to_csv(output_file, index=False)
         console.print(f"[green]結果を保存しました:[/green] {output_file}")
     else:
-        display_usage(df, title)
+        display_usage(df, title, markdown)
 
 
 @app.command()
@@ -436,6 +458,7 @@ def amazon_ec2(
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
+    markdown: bool = typer.Option(False, help="markdown形式で出力するかどうか"),
 ):
     """
     CSVファイルを読み込み、usage_typeにBoxが含まれる行を抽出します
@@ -447,7 +470,7 @@ def amazon_ec2(
         df.to_csv(output_file, index=False)
         console.print(f"[green]結果を保存しました:[/green] {output_file}")
     else:
-        display_usage(df, title)
+        display_usage(df, title, markdown)
 
 
 @app.command()
@@ -460,6 +483,7 @@ def aws_lambda(
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
+    markdown: bool = typer.Option(False, help="markdown形式で出力するかどうか"),
 ):
     """
     CSVファイルを読み込み、usage_typeにLambda-GBが含まれる行を抽出します
@@ -471,7 +495,7 @@ def aws_lambda(
         df.to_csv(output_file, index=False)
         console.print(f"[green]結果を保存しました:[/green] {output_file}")
     else:
-        display_usage(df, title)
+        display_usage(df, title, markdown)
 
 
 @app.command()
@@ -484,6 +508,7 @@ def all(
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
+    markdown: bool = typer.Option(False, help="markdown形式で出力するかどうか"),
 ):
     """
     CSVファイルを読み込み、Fargate、EC2、Lambdaの使用状況を一気に抽出します
@@ -496,7 +521,7 @@ def all(
         fargate_df.to_csv(fargate_output, index=False)
         console.print(f"[green]Fargateの結果を保存しました:[/green] {fargate_output}")
     else:
-        display_usage(fargate_df, fargate_title)
+        display_usage(fargate_df, fargate_title, markdown)
 
     # EC2の抽出
     ec2_output = f"{output_dir}/ec2_usage.csv" if output_dir else None
@@ -506,7 +531,7 @@ def all(
         ec2_df.to_csv(ec2_output, index=False)
         console.print(f"[green]EC2の結果を保存しました:[/green] {ec2_output}")
     else:
-        display_usage(ec2_df, ec2_title)
+        display_usage(ec2_df, ec2_title, markdown)
 
     # Lambdaの抽出
     lambda_output = f"{output_dir}/lambda_usage.csv" if output_dir else None
@@ -516,7 +541,7 @@ def all(
         lambda_df.to_csv(lambda_output, index=False)
         console.print(f"[green]Lambdaの結果を保存しました:[/green] {lambda_output}")
     else:
-        display_usage(lambda_df, lambda_title)
+        display_usage(lambda_df, lambda_title, markdown)
 
 
 @app.command()
