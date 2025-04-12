@@ -359,14 +359,14 @@ def get_usage_data(
                     filtered_df.groupby(group_keys)["cost"].sum().reset_index()
                 )
 
-                # グループ化されていない列に「合計」を設定
-                if GroupBy.USAGE_TYPE not in group_by:
-                    filtered_df["usage_type"] = "合計"
-                if GroupBy.ITEM_DESCRIPTION not in group_by:
-                    filtered_df["item_description"] = "合計"
-
-            # usage_typeとitem_descriptionでソート
-            filtered_df = filtered_df.sort_values(["usage_type", "item_description"])
+            # ソートキーの列が存在する場合のみソート
+            sort_keys = []
+            if "usage_type" in filtered_df.columns:
+                sort_keys.append("usage_type")
+            if "item_description" in filtered_df.columns:
+                sort_keys.append("item_description")
+            if sort_keys:
+                filtered_df = filtered_df.sort_values(sort_keys)
 
             # cost列のフォーマットを修正
             filtered_df["cost"] = filtered_df["cost"].apply(
