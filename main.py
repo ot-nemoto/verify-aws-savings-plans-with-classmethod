@@ -1,13 +1,252 @@
-import csv
-from pathlib import Path
+import calendar
+from enum import Enum
+from typing import Optional
+from urllib.parse import quote
 
 import pandas as pd
+import requests
 import typer
 from rich.console import Console
 from rich.table import Table
 
 app = typer.Typer()
 console = Console()
+
+
+class Term(str, Enum):
+    """Savings Plansの契約期間"""
+    ONE_YEAR = "1 year"
+    THREE_YEAR = "3 year"
+
+
+class PaymentOption(str, Enum):
+    """Savings Plansの支払いオプション"""
+    ALL_UPFRONT = "All Upfront"
+    PARTIAL_UPFRONT = "Partial Upfront"
+    NO_UPFRONT = "No Upfront"
+
+
+class Region(str, Enum):
+    """Savings Plansのリージョン"""
+    US_EAST_N_VIRGINIA = "US East (N. Virginia)"
+    US_WEST_OREGON = "US West (Oregon)"
+    EU_IRELAND = "EU (Ireland)"
+    ASIA_PACIFIC_TOKYO = "Asia Pacific (Tokyo)"
+    EU_FRANKFURT = "EU (Frankfurt)"
+    US_EAST_OHIO = "US East (Ohio)"
+    ASIA_PACIFIC_SYDNEY = "Asia Pacific (Sydney)"
+    ASIA_PACIFIC_SINGAPORE = "Asia Pacific (Singapore)"
+    AWS_GOVCLOUD_US = "AWS GovCloud (US)"
+    ASIA_PACIFIC_MUMBAI = "Asia Pacific (Mumbai)"
+    CANADA_CENTRAL = "Canada (Central)"
+    ASIA_PACIFIC_SEOUL = "Asia Pacific (Seoul)"
+    US_WEST_N_CALIFORNIA = "US West (N. California)"
+    EU_LONDON = "EU (London)"
+    SOUTH_AMERICA_SAO_PAULO = "South America (Sao Paulo)"
+    EU_STOCKHOLM = "EU (Stockholm)"
+    EU_PARIS = "EU (Paris)"
+    AWS_GOVCLOUD_US_EAST = "AWS GovCloud (US-East)"
+    EU_SPAIN = "EU (Spain)"
+    EU_MILAN = "EU (Milan)"
+    ASIA_PACIFIC_OSAKA = "Asia Pacific (Osaka)"
+    AFRICA_CAPE_TOWN = "Africa (Cape Town)"
+    ASIA_PACIFIC_HYDERABAD = "Asia Pacific (Hyderabad)"
+    ASIA_PACIFIC_HONG_KONG = "Asia Pacific (Hong Kong)"
+    ASIA_PACIFIC_JAKARTA = "Asia Pacific (Jakarta)"
+    EU_ZURICH = "EU (Zurich)"
+    ISRAEL_TEL_AVIV = "Israel (Tel Aviv)"
+    ASIA_PACIFIC_MALAYSIA = "Asia Pacific (Malaysia)"
+    MIDDLE_EAST_BAHRAIN = "Middle East (Bahrain)"
+    MIDDLE_EAST_UAE = "Middle East (UAE)"
+    ASIA_PACIFIC_THAILAND = "Asia Pacific (Thailand)"
+    MEXICO_CENTRAL = "Mexico (Central)"
+    ASIA_PACIFIC_MELBOURNE = "Asia Pacific (Melbourne)"
+    CANADA_WEST_CALGARY = "Canada West (Calgary)"
+    US_EAST_DALLAS = "US East (Dallas)"
+    US_WEST_LOS_ANGELES = "US West (Los Angeles)"
+    US_EAST_NEW_YORK_CITY = "US East (New York City)"
+    US_EAST_ATLANTA = "US East (Atlanta)"
+    US_EAST_CHICAGO = "US East (Chicago)"
+    US_WEST_PHOENIX = "US West (Phoenix)"
+    US_EAST_MIAMI = "US East (Miami)"
+    US_EAST_HOUSTON = "US East (Houston)"
+    US_EAST_PHILADELPHIA = "US East (Philadelphia)"
+    US_WEST_DENVER = "US West (Denver)"
+    ARGENTINA_BUENOS_AIRES = "Argentina (Buenos Aires)"
+    US_EAST_BOSTON = "US East (Boston)"
+    CHILE_SANTIAGO = "Chile (Santiago)"
+    PERU_LIMA = "Peru (Lima)"
+    AUSTRALIA_PERTH = "Australia (Perth)"
+    MEXICO_QUERETARO = "Mexico (Queretaro)"
+    US_WEST_HONOLULU = "US West (Honolulu)"
+    NIGERIA_LAGOS = "Nigeria (Lagos)"
+    PHILIPPINES_MANILA = "Philippines (Manila)"
+    POLAND_WARSAW = "Poland (Warsaw)"
+    TAIWAN_TAIPEI = "Taiwan (Taipei)"
+    THAILAND_BANGKOK = "Thailand (Bangkok)"
+    INDIA_KOLKATA = "India (Kolkata)"
+    US_EAST_KANSAS_CITY_2 = "US East (Kansas City 2)"
+    NEW_ZEALAND_AUCKLAND = "New Zealand (Auckland)"
+    US_EAST_VERIZON_CHARLOTTE = "US East (Verizon) - Charlotte"
+    US_EAST_VERIZON_NASHVILLE = "US East (Verizon) - Nashville"
+    US_EAST_VERIZON_WASHINGTON_DC = "US East (Verizon) - Washington DC"
+    DENMARK_COPENHAGEN = "Denmark (Copenhagen)"
+    FINLAND_HELSINKI = "Finland (Helsinki)"
+    GERMANY_HAMBURG = "Germany (Hamburg)"
+    INDIA_DELHI = "India (Delhi)"
+    OMAN_MUSCAT = "Oman (Muscat)"
+    US_EAST_MINNEAPOLIS = "US East (Minneapolis)"
+    US_WEST_LAS_VEGAS = "US West (Las Vegas)"
+    US_WEST_PORTLAND = "US West (Portland)"
+    US_WEST_SEATTLE = "US West (Seattle)"
+    MOROCCO_CASABLANCA = "Morocco (Casablanca)"
+    ASIA_PACIFIC_SKT_SEOUL = "Asia Pacific (SKT) - Seoul"
+    CANADA_BELL_TORONTO = "Canada (BELL) - Toronto"
+    EU_BRITISH_TELECOM_MANCHESTER = "EU (British Telecom) - Manchester"
+    EU_VODAFONE_BERLIN = "EU (Vodafone) - Berlin"
+    EU_VODAFONE_DORTMUND = "EU (Vodafone) - Dortmund"
+    EU_VODAFONE_LONDON = "EU (Vodafone) - London"
+    EU_VODAFONE_MANCHESTER = "EU (Vodafone) - Manchester"
+    EU_VODAFONE_MUNICH = "EU (Vodafone) - Munich"
+    US_EAST_VERIZON_CHICAGO = "US East (Verizon) - Chicago"
+    US_EAST_VERIZON_DETROIT = "US East (Verizon) - Detroit"
+    US_EAST_VERIZON_HOUSTON = "US East (Verizon) - Houston"
+    US_EAST_VERIZON_MIAMI = "US East (Verizon) - Miami"
+    US_EAST_VERIZON_MINNEAPOLIS = "US East (Verizon) - Minneapolis"
+    US_EAST_VERIZON_TAMPA = "US East (Verizon) - Tampa"
+    US_WEST_VERIZON_LOS_ANGELES = "US West (Verizon) - Los Angeles"
+    US_WEST_VERIZON_PHOENIX = "US West (Verizon) - Phoenix"
+    US_WEST_VERIZON_SAN_FRANCISCO_BAY_AREA = "US West (Verizon) - San Francisco Bay Area"
+    ASIA_PACIFIC_KDDI_OSAKA = "Asia Pacific (KDDI) - Osaka"
+    ASIA_PACIFIC_KDDI_TOKYO = "Asia Pacific (KDDI) - Tokyo"
+    ASIA_PACIFIC_SKT_DAEJEON = "Asia Pacific (SKT) - Daejeon"
+    US_EAST_VERIZON_ATLANTA = "US East (Verizon) - Atlanta"
+    US_EAST_VERIZON_BOSTON = "US East (Verizon) - Boston"
+    US_EAST_VERIZON_DALLAS = "US East (Verizon) - Dallas"
+    US_EAST_VERIZON_NEW_YORK = "US East (Verizon) - New York"
+    US_WEST_VERIZON_DENVER = "US West (Verizon) - Denver"
+    US_WEST_VERIZON_LAS_VEGAS = "US West (Verizon) - Las Vegas"
+    US_WEST_VERIZON_SEATTLE = "US West (Verizon) - Seattle"
+
+
+class OperatingSystem(str, Enum):
+    """Savings Plansのオペレーティングシステム"""
+    LINUX = "Linux"
+    RHEL = "RHEL"
+    SUSE = "SUSE"
+    RHEL_HA = "Red Hat Enterprise Linux with HA"
+    WINDOWS = "Windows"
+    UBUNTU_PRO = "Ubuntu Pro"
+    WINDOWS_SQL_WEB = "Windows with SQL Web"
+    LINUX_SQL_WEB = "Linux with SQL Web"
+    LINUX_SQL_STD = "Linux with SQL Std"
+    WINDOWS_SQL_STD = "Windows with SQL Std"
+    BYOL = "BYOL"
+    LINUX_SQL_ENT = "Linux with SQL Ent"
+    WINDOWS_SQL_ENT = "Windows with SQL Ent"
+    RHEL_SQL_STD = "RHEL with SQL Std"
+    RHEL_HA_SQL_STD = "Red Hat Enterprise Linux with HA with SQL Std"
+    RHEL_SQL_ENT = "RHEL with SQL Ent"
+    RHEL_HA_SQL_ENT = "Red Hat Enterprise Linux with HA with SQL Ent"
+    RHEL_SQL_WEB = "RHEL with SQL Web"
+
+
+class Tenancy(str, Enum):
+    """Savings Plansのテナンシー"""
+    SHARED = "Shared"
+    DEDICATED = "Dedicated"
+    HOST = "Host"
+
+
+def get_days_in_month(month_str: str) -> int:
+    """
+    年月文字列（YYYY-MM）からその月の日数を返します
+
+    Args:
+        month_str (str): 年月文字列（YYYY-MM形式）
+
+    Returns:
+        int: その月の日数
+    """
+    try:
+        year, month = map(int, month_str.split('-'))
+        return calendar.monthrange(year, month)[1]
+    except (ValueError, IndexError):
+        console.print(f"[red]無効な年月形式です: {month_str}[/red]")
+        return 0
+
+
+def get_compute_savings_plans_ec2_discount_rate(
+    instance_type: str,
+    term: Term = Term.ONE_YEAR,
+    payment_option: PaymentOption = PaymentOption.NO_UPFRONT,
+    region: Region = Region.ASIA_PACIFIC_TOKYO,
+    operating_system: OperatingSystem = OperatingSystem.LINUX,
+    tenancy: Tenancy = Tenancy.SHARED
+) -> Optional[float]:
+    """
+    AWS EC2インスタンスのSavings Plans割引率を取得します。
+
+    AWSの公開APIを使用して、指定されたEC2インスタンスタイプのSavings Plans割引率を計算します。
+    割引率は、通常価格に対するSavings Plans価格の割合から計算されます。
+
+    Args:
+        instance_type (str): EC2インスタンスタイプ（例：t3.medium）
+        term (Term): 契約期間（1年または3年）
+        payment_option (PaymentOption): 支払いオプション（全額前払い、一部前払い、前払いなし）
+        region (Region): AWSリージョン（例：東京リージョン）
+        operating_system (OperatingSystem): オペレーティングシステム（例：Linux、Windows）
+        tenancy (Tenancy): テナンシー（共有、専有、ホスト）
+
+    Returns:
+        Optional[float]: 割引率（0.0-1.0の範囲）またはNone（取得失敗時）
+
+    Examples:
+        >>> get_compute_savings_plans_ec2_discount_rate("t3.medium")
+        0.28  # 28%の割引率
+
+    Note:
+        - 割引率は、1 - (Savings Plans価格 / 通常価格) で計算されます
+        - インスタンスタイプが見つからない場合はNoneを返します
+        - APIリクエストに失敗した場合はNoneを返します
+    """
+    # URLのパラメータを設定
+    params = {
+        "term": term.value,
+        "payment_option": payment_option.value,
+        "region": region.value,
+        "os": operating_system.value,
+        "tenancy": tenancy.value
+    }
+
+    # パラメータをエンコード
+    encoded_params = {k: quote(v) for k, v in params.items()}
+
+    base_url = "https://b0.p.awsstatic.com/pricing/2.0/meteredUnitMaps/computesavingsplan/USD/current/compute-savings-plan-ec2"
+    path = "/".join([encoded_params['term'], encoded_params['payment_option'],
+                    encoded_params['region'], encoded_params['os'], encoded_params['tenancy'], "index.json"])
+    url = f"{base_url}/{path}"
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        # インスタンスタイプの検索
+        for instance_data in data["regions"][region.value].values():
+            if instance_data["ec2:InstanceType"] == instance_type:
+                original_price = float(instance_data["ec2:PricePerUnit"])
+                savings_plan_price = float(instance_data["price"])
+                discount_rate = 1 - (savings_plan_price / original_price)
+                return round(discount_rate, 4)
+
+        console.print(
+            f"[yellow]インスタンスタイプ {instance_type} の割引率が見つかりませんでした。[/yellow]")
+        return None
+
+    except Exception as e:
+        console.print(f"[red]割引率の取得中にエラーが発生しました:[/red] {str(e)}")
+        return None
 
 
 def extract_usage(csv_file: str, usage_type: str, title: str, output_file: str = None, no_savings_plan: bool = False):
@@ -140,6 +379,41 @@ def all(
     lambda_title = "Lambda使用状況"
     extract_usage(csv_file, "Lambda-GB", lambda_title,
                   lambda_output, no_savings_plan)
+
+
+@app.command()
+def amazon_ec2_discount_rate(
+    instance_type: str = typer.Argument(..., help="EC2インスタンスタイプ"),
+    term: Term = typer.Option(Term.ONE_YEAR, help="契約期間"),
+    payment_option: PaymentOption = typer.Option(
+        PaymentOption.PARTIAL_UPFRONT, help="支払いオプション"),
+    region: Region = typer.Option(Region.ASIA_PACIFIC_TOKYO, help="リージョン"),
+    operating_system: OperatingSystem = typer.Option(
+        OperatingSystem.LINUX, help="オペレーティングシステム"),
+    tenancy: Tenancy = typer.Option(Tenancy.SHARED, help="テナンシー")
+):
+    """
+    Savings Plansの割引率を取得する
+    """
+    discount_rate = get_compute_savings_plans_ec2_discount_rate(
+        instance_type=instance_type,
+        term=term,
+        payment_option=payment_option,
+        region=region,
+        operating_system=operating_system,
+        tenancy=tenancy
+    )
+
+    if discount_rate is not None:
+        console.print(
+            f"[green]割引率:[/green] {discount_rate:.4f} ({discount_rate:.2%})")
+        console.print(f"[blue]契約期間:[/blue] {term.value}")
+        console.print(f"[blue]支払いオプション:[/blue] {payment_option.value}")
+        console.print(f"[blue]リージョン:[/blue] {region.value}")
+        console.print(f"[blue]オペレーティングシステム:[/blue] {operating_system.value}")
+        console.print(f"[blue]テナンシー:[/blue] {tenancy.value}")
+    else:
+        console.print("[red]割引率の取得に失敗しました。[/red]")
 
 
 if __name__ == "__main__":
