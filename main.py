@@ -1,6 +1,6 @@
 import calendar
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 from urllib.parse import quote
 
 import pandas as pd
@@ -158,6 +158,11 @@ class Tenancy(str, Enum):
     HOST = "Host"
 
 
+class GroupBy(str, Enum):
+    USAGE_TYPE = "usage_type"
+    ITEM_DESCRIPTION = "item_description"
+
+
 def get_days_in_month(month_str: str) -> int:
     """
     年月文字列（YYYY-MM）からその月の日数を返します
@@ -249,9 +254,41 @@ def get_compute_savings_plans_ec2_discount_rate(
         return None
 
 
-def extract_usage(csv_file: str, usage_type: str, title: str, output_file: str = None, no_savings_plan: bool = False):
+def create_usage_table(df: pd.DataFrame, title: str) -> Table:
+    """
+    使用状況のテーブルを作成します。
+
+    Args:
+        df (pd.DataFrame): 使用状況データ
+        title (str): テーブルのタイトル
+
+    Returns:
+        Table: 作成されたテーブル
+    """
+    table = Table(title=title)
+
+    # 列の追加
+    for column in df.columns:
+        table.add_column(column)
+
+    # 行の追加
+    for _, row in df.iterrows():
+        table.add_row(*[str(value) for value in row])
+
+    return table
+
+
+def extract_usage(csv_file: str, usage_type: str, title: str, output_file: str = None, no_negation: bool = False, group_by: List[GroupBy] = None):
     """
     CSVファイルを読み込み、指定されたusage_typeを含む行を抽出します
+
+    Args:
+        csv_file (str): CSVファイルのパス
+        usage_type (str): 抽出するusage_type
+        title (str): 表示するタイトル
+        output_file (str, optional): 出力ファイルのパス
+        no_negation (bool, optional): SavingsPlanNegationを除外するかどうか
+        group_by (List[GroupBy], optional): グループ化のキー（usage_type, item_description）
     """
     console.print(f"[bold]ファイル処理中:[/bold] {csv_file}")
 
@@ -265,7 +302,7 @@ def extract_usage(csv_file: str, usage_type: str, title: str, output_file: str =
                 usage_type, case=False, na=False)]
 
             # SavingsPlanNegationのフィルタリング
-            if no_savings_plan:
+            if no_negation:
                 filtered_df = filtered_df[~filtered_df['item_description'].str.contains(
                     'SavingsPlanNegation', case=False, na=False)]
 
@@ -279,6 +316,23 @@ def extract_usage(csv_file: str, usage_type: str, title: str, output_file: str =
                                 'usage_type', 'item_description', 'cost']
             filtered_df = filtered_df[selected_columns]
 
+            # グループ化の処理
+            if group_by:
+                group_keys = ['month', 'aws_account_id']
+                if GroupBy.USAGE_TYPE in group_by:
+                    group_keys.append('usage_type')
+                if GroupBy.ITEM_DESCRIPTION in group_by:
+                    group_keys.append('item_description')
+
+                filtered_df = filtered_df.groupby(
+                    group_keys)['cost'].sum().reset_index()
+
+                # グループ化されていない列に「合計」を設定
+                if GroupBy.USAGE_TYPE not in group_by:
+                    filtered_df['usage_type'] = '合計'
+                if GroupBy.ITEM_DESCRIPTION not in group_by:
+                    filtered_df['item_description'] = '合計'
+
             # usage_typeとitem_descriptionでソート
             filtered_df = filtered_df.sort_values(
                 ['usage_type', 'item_description'])
@@ -291,17 +345,8 @@ def extract_usage(csv_file: str, usage_type: str, title: str, output_file: str =
             console.print(
                 f"[green]抽出された行数:[/green] {len(filtered_df)}")
 
-            # テーブルで結果を表示
-            table = Table(title=title)
-
-            # 列の追加
-            for column in filtered_df.columns:
-                table.add_column(column)
-
-            # 行の追加（最初の10行のみ表示）
-            for _, row in filtered_df.head(10).iterrows():
-                table.add_row(*[str(value) for value in row])
-
+            # テーブルを作成して表示
+            table = create_usage_table(filtered_df, title)
             console.print(table)
 
             # 出力ファイルが指定されている場合、結果を保存
@@ -315,50 +360,73 @@ def extract_usage(csv_file: str, usage_type: str, title: str, output_file: str =
         console.print(f"[red]エラーが発生しました:[/red] {str(e)}")
 
 
+def group_by_callback(value: list[str]) -> list[str]:
+    """
+    グループ化のキーをリストとして受け取るコールバック関数
+
+    Args:
+        value (list[str]): グループ化のキーのリスト
+
+    Returns:
+        list[str]: グループ化のキーのリスト
+    """
+    return value
+
+
 @app.command()
 def aws_fargate(
     csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
     output_file: str = typer.Option(None, help="出力ファイルのパス（指定しない場合は表示のみ）"),
-    no_savings_plan: bool = typer.Option(False, help="SavingsPlanNegationを除外")
+    no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
+    group_by: List[GroupBy] = typer.Option(
+        None, help="グループ化のキー（usage_type, item_description）"),
 ):
     """
     CSVファイルを読み込み、usage_typeにFargateが含まれる行を抽出します
     """
     title = "Fargate使用状況"
-    extract_usage(csv_file, "Fargate", title, output_file, no_savings_plan)
+    extract_usage(csv_file, "Fargate", title,
+                  output_file, no_negation, group_by)
 
 
 @app.command()
 def amazon_ec2(
     csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
     output_file: str = typer.Option(None, help="出力ファイルのパス（指定しない場合は表示のみ）"),
-    no_savings_plan: bool = typer.Option(False, help="SavingsPlanNegationを除外")
+    no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
+    group_by: List[GroupBy] = typer.Option(
+        None, help="グループ化のキー（usage_type, item_description）"),
 ):
     """
     CSVファイルを読み込み、usage_typeにBoxが含まれる行を抽出します
     """
     title = "EC2使用状況"
-    extract_usage(csv_file, "Box", title, output_file, no_savings_plan)
+    extract_usage(csv_file, "Box", title, output_file, no_negation, group_by)
 
 
 @app.command()
 def aws_lambda(
     csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
     output_file: str = typer.Option(None, help="出力ファイルのパス（指定しない場合は表示のみ）"),
-    no_savings_plan: bool = typer.Option(False, help="SavingsPlanNegationを除外")
+    no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
+    group_by: List[GroupBy] = typer.Option(
+        None, help="グループ化のキー（usage_type, item_description）"),
 ):
     """
     CSVファイルを読み込み、usage_typeにLambda-GBが含まれる行を抽出します
     """
     title = "Lambda使用状況"
-    extract_usage(csv_file, "Lambda-GB", title, output_file, no_savings_plan)
+    extract_usage(csv_file, "Lambda-GB", title,
+                  output_file, no_negation, group_by)
 
 
 @app.command()
 def all(
     csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
     output_dir: str = typer.Option(None, help="出力ディレクトリのパス（指定しない場合は表示のみ）"),
-    no_savings_plan: bool = typer.Option(False, help="SavingsPlanNegationを除外")
+    no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
+    group_by: List[GroupBy] = typer.Option(
+        None, help="グループ化のキー（usage_type, item_description）"),
 ):
     """
     CSVファイルを読み込み、Fargate、EC2、Lambdaの使用状況を一気に抽出します
@@ -367,18 +435,19 @@ def all(
     fargate_output = f"{output_dir}/fargate_usage.csv" if output_dir else None
     fargate_title = "Fargate使用状況"
     extract_usage(csv_file, "Fargate", fargate_title,
-                  fargate_output, no_savings_plan)
+                  fargate_output, no_negation, group_by)
 
     # EC2の抽出
     ec2_output = f"{output_dir}/ec2_usage.csv" if output_dir else None
     ec2_title = "EC2使用状況"
-    extract_usage(csv_file, "Box", ec2_title, ec2_output, no_savings_plan)
+    extract_usage(csv_file, "Box", ec2_title,
+                  ec2_output, no_negation, group_by)
 
     # Lambdaの抽出
     lambda_output = f"{output_dir}/lambda_usage.csv" if output_dir else None
     lambda_title = "Lambda使用状況"
     extract_usage(csv_file, "Lambda-GB", lambda_title,
-                  lambda_output, no_savings_plan)
+                  lambda_output, no_negation, group_by)
 
 
 @app.command()

@@ -1,13 +1,13 @@
 # AWS Savings Plans 検証ツール
 
-このツールは、AWS Savings Plansの利用状況を分析し、最適な契約プランを提案するためのツールです。
+このツールは、AWS Savings Plansの使用状況を分析し、最適な契約プランを提案するためのツールです。
 
 ## 機能
 
-- AWS Cost and Usage Report (CUR) から利用データを抽出
-- Fargate、EC2、Lambdaの利用状況を分析
-- Savings Plansの割引率を計算
-- 最適な契約プランを提案
+- AWS Cost and Usage Report (CUR)から使用状況データを抽出
+- Fargate、EC2、Lambdaの使用状況を分析
+- 割引率の計算
+- 最適な契約プランの提案
 
 ## インストール
 
@@ -17,86 +17,83 @@ pip install -r requirements.txt
 
 ## 使用方法
 
-### 利用データの抽出
+### 使用状況データの抽出
 
 ```bash
-python main.py all <cur_file_path>
+# Fargateの使用状況を抽出
+python main.py aws-fargate monthly-report-2024-12-123456789012.csv
+
+# EC2の使用状況を抽出
+python main.py amazon-ec2 monthly-report-2024-12-123456789012.csv
+
+# Lambdaの使用状況を抽出
+python main.py aws-lambda monthly-report-2024-12-123456789012.csv
+
+# すべてのサービスの使用状況を抽出
+python main.py all monthly-report-2024-12-123456789012.csv
 ```
 
-### Savings Plansの割引率計算
+### オプション
+
+- `--output-file` または `--output-dir`: 結果をファイルに出力
+- `--no-negation`: SavingsPlanNegationを除外
+- `--group-by`: データのグループ化（usage_type, item_description）
+
+### グループ化の例
 
 ```bash
-python main.py test-savings-plans <instance_type> [--term {1 year,3 year}] [--payment-option {All Upfront,Partial Upfront,No Upfront}] [--region <region>] [--operating-system <os>] [--tenancy {Shared,Dedicated,Host}]
+# usage_typeでグループ化
+python main.py aws-fargate monthly-report-2024-12-123456789012.csv --group-by usage_type
+
+# item_descriptionでグループ化
+python main.py amazon-ec2 monthly-report-2024-12-123456789012.csv --group-by item_description
+
+# 両方でグループ化
+python main.py aws-lambda monthly-report-2024-12-123456789012.csv --group-by usage_type --group-by item_description
 ```
 
-例：
+### 割引率の計算
+
 ```bash
-# t3.mediumインスタンスの1年契約、前払いなしの割引率を計算
-python main.py test-savings-plans t3.medium
-
-# t3.mediumインスタンスの3年契約、全額前払いの割引率を計算
-python main.py test-savings-plans t3.medium --term "3 year" --payment-option "All Upfront"
-
-# Windows OS、専有テナンシーの割引率を計算
-python main.py test-savings-plans t3.medium --operating-system "Windows" --tenancy "Dedicated"
+python main.py amazon-ec2-discount-rate t3.medium
 ```
 
 ### サポートされているパラメータ
 
-#### リージョン
-- US East (N. Virginia)
-- US West (Oregon)
-- EU (Ireland)
-- Asia Pacific (Tokyo)
-- その他多数のリージョン
-
-#### オペレーティングシステム
-- Linux
-- RHEL
-- SUSE
-- Red Hat Enterprise Linux with HA
-- Windows
-- Ubuntu Pro
-- Windows with SQL Web
-- Linux with SQL Web
-- その他多数のOS
-
-#### テナンシー
-- Shared
-- Dedicated
-- Host
+- リージョン: 東京、大阪、バージニア北部など
+- オペレーティングシステム: Linux、Windows、RHELなど
+- テナンシー: 共有、専有、ホスト
 
 ## 出力例
 
-### 利用データの抽出結果
+### 使用状況データの抽出結果
 
 ```
-Fargate Usage:
-┌─────────┬─────────────────┬──────────────────────────────┬──────────────────────────────────────┬──────────┐
-│ Month   │ AWS Account ID  │ Usage Type                   │ Item Description                     │ Cost     │
-├─────────┼─────────────────┼──────────────────────────────┼──────────────────────────────────────┼──────────┤
-│ 2024-12 │ 123456789012    │ Fargate-vCPU-Hours:perCPU    │ Amazon Elastic Container Service     │ $0.00    │
-└─────────┴─────────────────┴──────────────────────────────┴──────────────────────────────────────┴──────────┘
-
-EC2 Usage:
-┌─────────┬─────────────────┬──────────────────────────────┬──────────────────────────────────────┬──────────┐
-│ Month   │ AWS Account ID  │ Usage Type                   │ Item Description                     │ Cost     │
-├─────────┼─────────────────┼──────────────────────────────┼──────────────────────────────────────┼──────────┤
-│ 2024-12 │ 123456789012    │ BoxUsage:t3.medium          │ Amazon Elastic Compute Cloud         │ $0.00    │
-└─────────┴─────────────────┴──────────────────────────────┴──────────────────────────────────────┴──────────┘
+Fargate使用状況
++------------+----------------+------------------+------------------+------------------+
+| month      | aws_account_id | usage_type       | item_description | cost            |
++------------+----------------+------------------+------------------+------------------+
+| 2024-12    | 123456789012  | Fargate-vCPU-Hrs | Fargate          | 0.0000000000    |
+| 2024-12    | 123456789012  | Fargate-GB-Hrs   | Fargate          | 0.0000000000    |
++------------+----------------+------------------+------------------+------------------+
 ```
 
-### 割引率計算結果
+### 割引率の計算結果
 
 ```
 割引率: 0.28 (28%)
+契約期間: 1 year
+支払いオプション: Partial Upfront
+リージョン: Asia Pacific (Tokyo)
+オペレーティングシステム: Linux
+テナンシー: Shared
 ```
 
 ## 注意事項
 
-- 割引率は、AWSの公開APIから取得した価格情報に基づいて計算されます
-- 実際の割引率は、AWSの価格改定により変更される可能性があります
-- 計算結果は参考値としてご利用ください
+- 割引率は、AWSの公開APIの価格情報に基づいています
+- 価格改定により、割引率が変更される可能性があります
+- 使用状況データは、AWS Cost and Usage Report (CUR)から取得する必要があります
 
 ## ライセンス
 
