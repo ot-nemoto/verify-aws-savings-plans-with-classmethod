@@ -15,12 +15,14 @@ console = Console()
 
 class Term(str, Enum):
     """Savings Plansの契約期間"""
+
     ONE_YEAR = "1 year"
     THREE_YEAR = "3 year"
 
 
 class PaymentOption(str, Enum):
     """Savings Plansの支払いオプション"""
+
     ALL_UPFRONT = "All Upfront"
     PARTIAL_UPFRONT = "Partial Upfront"
     NO_UPFRONT = "No Upfront"
@@ -28,6 +30,7 @@ class PaymentOption(str, Enum):
 
 class Region(str, Enum):
     """Savings Plansのリージョン"""
+
     US_EAST_N_VIRGINIA = "US East (N. Virginia)"
     US_WEST_OREGON = "US West (Oregon)"
     EU_IRELAND = "EU (Ireland)"
@@ -116,7 +119,9 @@ class Region(str, Enum):
     US_EAST_VERIZON_TAMPA = "US East (Verizon) - Tampa"
     US_WEST_VERIZON_LOS_ANGELES = "US West (Verizon) - Los Angeles"
     US_WEST_VERIZON_PHOENIX = "US West (Verizon) - Phoenix"
-    US_WEST_VERIZON_SAN_FRANCISCO_BAY_AREA = "US West (Verizon) - San Francisco Bay Area"
+    US_WEST_VERIZON_SAN_FRANCISCO_BAY_AREA = (
+        "US West (Verizon) - San Francisco Bay Area"
+    )
     ASIA_PACIFIC_KDDI_OSAKA = "Asia Pacific (KDDI) - Osaka"
     ASIA_PACIFIC_KDDI_TOKYO = "Asia Pacific (KDDI) - Tokyo"
     ASIA_PACIFIC_SKT_DAEJEON = "Asia Pacific (SKT) - Daejeon"
@@ -131,6 +136,7 @@ class Region(str, Enum):
 
 class OperatingSystem(str, Enum):
     """Savings Plansのオペレーティングシステム"""
+
     LINUX = "Linux"
     RHEL = "RHEL"
     SUSE = "SUSE"
@@ -153,6 +159,7 @@ class OperatingSystem(str, Enum):
 
 class Tenancy(str, Enum):
     """Savings Plansのテナンシー"""
+
     SHARED = "Shared"
     DEDICATED = "Dedicated"
     HOST = "Host"
@@ -174,7 +181,7 @@ def get_days_in_month(month_str: str) -> int:
         int: その月の日数
     """
     try:
-        year, month = map(int, month_str.split('-'))
+        year, month = map(int, month_str.split("-"))
         return calendar.monthrange(year, month)[1]
     except (ValueError, IndexError):
         console.print(f"[red]無効な年月形式です: {month_str}[/red]")
@@ -187,7 +194,7 @@ def get_compute_savings_plans_ec2_discount_rate(
     payment_option: PaymentOption = PaymentOption.NO_UPFRONT,
     region: Region = Region.ASIA_PACIFIC_TOKYO,
     operating_system: OperatingSystem = OperatingSystem.LINUX,
-    tenancy: Tenancy = Tenancy.SHARED
+    tenancy: Tenancy = Tenancy.SHARED,
 ) -> Optional[float]:
     """
     AWS EC2インスタンスのSavings Plans割引率を取得します。
@@ -221,15 +228,23 @@ def get_compute_savings_plans_ec2_discount_rate(
         "payment_option": payment_option.value,
         "region": region.value,
         "os": operating_system.value,
-        "tenancy": tenancy.value
+        "tenancy": tenancy.value,
     }
 
     # パラメータをエンコード
     encoded_params = {k: quote(v) for k, v in params.items()}
 
     base_url = "https://b0.p.awsstatic.com/pricing/2.0/meteredUnitMaps/computesavingsplan/USD/current/compute-savings-plan-ec2"
-    path = "/".join([encoded_params['term'], encoded_params['payment_option'],
-                    encoded_params['region'], encoded_params['os'], encoded_params['tenancy'], "index.json"])
+    path = "/".join(
+        [
+            encoded_params["term"],
+            encoded_params["payment_option"],
+            encoded_params["region"],
+            encoded_params["os"],
+            encoded_params["tenancy"],
+            "index.json",
+        ]
+    )
     url = f"{base_url}/{path}"
 
     try:
@@ -246,7 +261,8 @@ def get_compute_savings_plans_ec2_discount_rate(
                 return round(discount_rate, 4)
 
         console.print(
-            f"[yellow]インスタンスタイプ {instance_type} の割引率が見つかりませんでした。[/yellow]")
+            f"[yellow]インスタンスタイプ {instance_type} の割引率が見つかりませんでした。[/yellow]"
+        )
         return None
 
     except Exception as e:
@@ -278,7 +294,12 @@ def create_usage_table(df: pd.DataFrame, title: str) -> Table:
     return table
 
 
-def get_usage_data(csv_file: str, usage_type: str, no_negation: bool = False, group_by: List[GroupBy] = None) -> pd.DataFrame:
+def get_usage_data(
+    csv_file: str,
+    usage_type: str,
+    no_negation: bool = False,
+    group_by: List[GroupBy] = None,
+) -> pd.DataFrame:
     """
     CSVファイルから指定されたusage_typeの使用状況データを取得します
 
@@ -298,14 +319,18 @@ def get_usage_data(csv_file: str, usage_type: str, no_negation: bool = False, gr
         df = pd.read_csv(csv_file)
 
         # 'usage_type'列に指定された文字列が含まれる行をフィルタリング
-        if 'usage_type' in df.columns:
-            filtered_df = df[df['usage_type'].str.contains(
-                usage_type, case=False, na=False)]
+        if "usage_type" in df.columns:
+            filtered_df = df[
+                df["usage_type"].str.contains(usage_type, case=False, na=False)
+            ]
 
             # SavingsPlanNegationのフィルタリング
             if no_negation:
-                filtered_df = filtered_df[~filtered_df['item_description'].str.contains(
-                    'SavingsPlanNegation', case=False, na=False)]
+                filtered_df = filtered_df[
+                    ~filtered_df["item_description"].str.contains(
+                        "SavingsPlanNegation", case=False, na=False
+                    )
+                ]
 
             # 結果があるか確認
             if filtered_df.empty:
@@ -313,34 +338,40 @@ def get_usage_data(csv_file: str, usage_type: str, no_negation: bool = False, gr
                 return pd.DataFrame()
 
             # 指定された列のみを選択
-            selected_columns = ['month', 'aws_account_id',
-                                'usage_type', 'item_description', 'cost']
+            selected_columns = [
+                "month",
+                "aws_account_id",
+                "usage_type",
+                "item_description",
+                "cost",
+            ]
             filtered_df = filtered_df[selected_columns]
 
             # グループ化の処理
             if group_by:
-                group_keys = ['month', 'aws_account_id']
+                group_keys = ["month", "aws_account_id"]
                 if GroupBy.USAGE_TYPE in group_by:
-                    group_keys.append('usage_type')
+                    group_keys.append("usage_type")
                 if GroupBy.ITEM_DESCRIPTION in group_by:
-                    group_keys.append('item_description')
+                    group_keys.append("item_description")
 
-                filtered_df = filtered_df.groupby(
-                    group_keys)['cost'].sum().reset_index()
+                filtered_df = (
+                    filtered_df.groupby(group_keys)["cost"].sum().reset_index()
+                )
 
                 # グループ化されていない列に「合計」を設定
                 if GroupBy.USAGE_TYPE not in group_by:
-                    filtered_df['usage_type'] = '合計'
+                    filtered_df["usage_type"] = "合計"
                 if GroupBy.ITEM_DESCRIPTION not in group_by:
-                    filtered_df['item_description'] = '合計'
+                    filtered_df["item_description"] = "合計"
 
             # usage_typeとitem_descriptionでソート
-            filtered_df = filtered_df.sort_values(
-                ['usage_type', 'item_description'])
+            filtered_df = filtered_df.sort_values(["usage_type", "item_description"])
 
             # cost列のフォーマットを修正
-            filtered_df['cost'] = filtered_df['cost'].apply(
-                lambda x: f"{x:.10f}".rstrip('0').rstrip('.'))
+            filtered_df["cost"] = filtered_df["cost"].apply(
+                lambda x: f"{x:.10f}".rstrip("0").rstrip(".")
+            )
 
             return filtered_df
         else:
@@ -374,10 +405,13 @@ def display_usage(df: pd.DataFrame, title: str):
 @app.command()
 def aws_fargate(
     csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
-    output_file: str = typer.Option(None, help="出力ファイルのパス（指定しない場合は表示のみ）"),
+    output_file: str = typer.Option(
+        None, help="出力ファイルのパス（指定しない場合は表示のみ）"
+    ),
     no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
     group_by: List[GroupBy] = typer.Option(
-        None, help="グループ化のキー（usage_type, item_description）"),
+        None, help="グループ化のキー（usage_type, item_description）"
+    ),
 ):
     """
     CSVファイルを読み込み、usage_typeにFargateが含まれる行を抽出します
@@ -395,10 +429,13 @@ def aws_fargate(
 @app.command()
 def amazon_ec2(
     csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
-    output_file: str = typer.Option(None, help="出力ファイルのパス（指定しない場合は表示のみ）"),
+    output_file: str = typer.Option(
+        None, help="出力ファイルのパス（指定しない場合は表示のみ）"
+    ),
     no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
     group_by: List[GroupBy] = typer.Option(
-        None, help="グループ化のキー（usage_type, item_description）"),
+        None, help="グループ化のキー（usage_type, item_description）"
+    ),
 ):
     """
     CSVファイルを読み込み、usage_typeにBoxが含まれる行を抽出します
@@ -416,10 +453,13 @@ def amazon_ec2(
 @app.command()
 def aws_lambda(
     csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
-    output_file: str = typer.Option(None, help="出力ファイルのパス（指定しない場合は表示のみ）"),
+    output_file: str = typer.Option(
+        None, help="出力ファイルのパス（指定しない場合は表示のみ）"
+    ),
     no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
     group_by: List[GroupBy] = typer.Option(
-        None, help="グループ化のキー（usage_type, item_description）"),
+        None, help="グループ化のキー（usage_type, item_description）"
+    ),
 ):
     """
     CSVファイルを読み込み、usage_typeにLambda-GBが含まれる行を抽出します
@@ -437,10 +477,13 @@ def aws_lambda(
 @app.command()
 def all(
     csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
-    output_dir: str = typer.Option(None, help="出力ディレクトリのパス（指定しない場合は表示のみ）"),
+    output_dir: str = typer.Option(
+        None, help="出力ディレクトリのパス（指定しない場合は表示のみ）"
+    ),
     no_negation: bool = typer.Option(False, help="SavingsPlanNegationを除外"),
     group_by: List[GroupBy] = typer.Option(
-        None, help="グループ化のキー（usage_type, item_description）"),
+        None, help="グループ化のキー（usage_type, item_description）"
+    ),
 ):
     """
     CSVファイルを読み込み、Fargate、EC2、Lambdaの使用状況を一気に抽出します
@@ -481,11 +524,13 @@ def amazon_ec2_discount_rate(
     instance_type: str = typer.Argument(..., help="EC2インスタンスタイプ"),
     term: Term = typer.Option(Term.ONE_YEAR, help="契約期間"),
     payment_option: PaymentOption = typer.Option(
-        PaymentOption.PARTIAL_UPFRONT, help="支払いオプション"),
+        PaymentOption.PARTIAL_UPFRONT, help="支払いオプション"
+    ),
     region: Region = typer.Option(Region.ASIA_PACIFIC_TOKYO, help="リージョン"),
     operating_system: OperatingSystem = typer.Option(
-        OperatingSystem.LINUX, help="オペレーティングシステム"),
-    tenancy: Tenancy = typer.Option(Tenancy.SHARED, help="テナンシー")
+        OperatingSystem.LINUX, help="オペレーティングシステム"
+    ),
+    tenancy: Tenancy = typer.Option(Tenancy.SHARED, help="テナンシー"),
 ):
     """
     Savings Plansの割引率を取得する
@@ -496,16 +541,19 @@ def amazon_ec2_discount_rate(
         payment_option=payment_option,
         region=region,
         operating_system=operating_system,
-        tenancy=tenancy
+        tenancy=tenancy,
     )
 
     if discount_rate is not None:
         console.print(
-            f"[green]割引率:[/green] {discount_rate:.4f} ({discount_rate:.2%})")
+            f"[green]割引率:[/green] {discount_rate:.4f} ({discount_rate:.2%})"
+        )
         console.print(f"[blue]契約期間:[/blue] {term.value}")
         console.print(f"[blue]支払いオプション:[/blue] {payment_option.value}")
         console.print(f"[blue]リージョン:[/blue] {region.value}")
-        console.print(f"[blue]オペレーティングシステム:[/blue] {operating_system.value}")
+        console.print(
+            f"[blue]オペレーティングシステム:[/blue] {operating_system.value}"
+        )
         console.print(f"[blue]テナンシー:[/blue] {tenancy.value}")
     else:
         console.print("[red]割引率の取得に失敗しました。[/red]")

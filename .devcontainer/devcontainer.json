@@ -11,19 +11,7 @@
 			"extensions": [
 				"ms-python.python",
 				"charliermarsh.ruff"
-			],
-			"settings": {
-				"editor.defaultFormatter": "charliermarsh.ruff",
-				"editor.formatOnSave": true,
-				"editor.insertSpaces": true,
-				"editor.detectIndentation": false,
-				"editor.tabSize": 2,
-				"files.trimTrailingWhitespace": true,
-				"editor.codeActionsOnSave": {
-					"source.organizeImports.ruff": "explicit"
-				},
-				"ruff.enable": true
-			}
+			]
 		}
 	},
 	"postCreateCommand": "pip install -r requirements.txt"
