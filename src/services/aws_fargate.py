@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict
 from urllib.parse import quote
 
 import requests
@@ -21,7 +21,7 @@ def get_discount_rate(
     region: Region = Region.ASIA_PACIFIC_TOKYO,
     operating_system: OperatingSystem = OperatingSystem.LINUX,
     cpu_architecture: CPUArchitecture = CPUArchitecture.X86,
-) -> Optional[float]:
+) -> Dict[str, float]:
     """
     AWS FargateのSavings Plans割引率を取得します。
 
