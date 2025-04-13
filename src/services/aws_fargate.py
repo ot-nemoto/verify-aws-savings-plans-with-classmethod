@@ -21,6 +21,8 @@ def get_discount_rate(
     region: Region = Region.ASIA_PACIFIC_TOKYO,
     operating_system: OperatingSystem = OperatingSystem.LINUX,
     cpu_architecture: CPUArchitecture = CPUArchitecture.X86,
+    is_memory: bool = True,
+    is_cpu: bool = True,
 ) -> Dict[str, float]:
     """
     AWS FargateのSavings Plans割引率を取得します。
@@ -58,6 +60,11 @@ def get_discount_rate(
         # 割引率の計算
         ret = {}
         for key, value in data["regions"][region.value].items():
+            if value["fargate:MemoryType"] and not is_memory:
+                continue
+            if value["fargate:CPUType"] and not is_cpu:
+                continue
+
             discount_rate = 1 - (
                 float(value["price"]) / float(value["fargate:PricePerUnit"])
             )

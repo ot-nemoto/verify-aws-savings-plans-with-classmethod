@@ -420,9 +420,20 @@ def aws_fargate_discount_rate(
     cpu_architecture: AwsFargateCPUArchitecture = typer.Option(
         AwsFargateCPUArchitecture.X86, help="CPUアーキテクチャ"
     ),
+    memory: bool = typer.Option(False, "--memory", help="メモリの割引率を表示"),
+    cpu: bool = typer.Option(False, "--cpu", help="CPUの割引率を表示"),
 ):
     """
     Fargate Savings Plansの割引率を取得する
+
+    Args:
+        term: 契約期間
+        payment_option: 支払いオプション
+        region: リージョン
+        operating_system: オペレーティングシステム
+        cpu_architecture: CPUアーキテクチャ
+        memory: メモリの割引率のみを表示
+        cpu: CPUの割引率のみを表示
     """
     discount_rate = get_aws_fargate_discount_rate(
         term=term,
@@ -430,6 +441,8 @@ def aws_fargate_discount_rate(
         region=region,
         operating_system=operating_system,
         cpu_architecture=cpu_architecture,
+        is_memory=True if not any([memory, cpu]) else memory,
+        is_cpu=True if not any([memory, cpu]) else cpu,
     )
 
     if discount_rate is not None:
