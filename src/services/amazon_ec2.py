@@ -1,4 +1,3 @@
-import json
 from typing import Dict
 from urllib.parse import quote
 
@@ -60,8 +59,6 @@ def get_discount_rate(
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
-
-        print(json.dumps(data, indent=4))
 
         # 割引率の計算
         ret = {}
