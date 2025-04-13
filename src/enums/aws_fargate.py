@@ -67,3 +67,10 @@ class CPUArchitecture(str, Enum):
 
     X86 = "X86"
     ARM = "ARM"
+
+
+class ComputeResourceType(str, Enum):
+    """Fargate Savings Plansのコンピューティングリソースタイプ"""
+
+    CPU = "perCPU"
+    MEMORY = "perGB"

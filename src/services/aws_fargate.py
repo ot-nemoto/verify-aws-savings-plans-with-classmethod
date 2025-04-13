@@ -37,30 +37,18 @@ def get_discount_rate(
     Returns:
         Optional[float]: 割引率（0.0-1.0の範囲）またはNone（取得失敗時）
     """
-    # URLのパラメータを設定
-    params = {
-        "term": term.value,
-        "payment_option": payment_option.value,
-        "region": region.value,
-        "os": operating_system.value,
-        "cpu_architecture": cpu_architecture.value,
-    }
-
-    # パラメータをエンコード
-    encoded_params = {k: quote(v) for k, v in params.items()}
-
+    # URLを設定
     base_url = "https://b0.p.awsstatic.com/pricing/2.0/meteredUnitMaps/computesavingsplan/USD/current/compute-savings-plan-fargate-with-arm"
-    path = "/".join(
+    path_parameters = "/".join(
         [
-            encoded_params["term"],
-            encoded_params["payment_option"],
-            encoded_params["region"],
-            encoded_params["os"],
-            encoded_params["cpu_architecture"],
-            "index.json",
+            quote(term.value),
+            quote(payment_option.value),
+            quote(region.value),
+            quote(operating_system.value),
+            quote(cpu_architecture.value),
         ]
     )
-    url = f"{base_url}/{path}"
+    url = f"{base_url}/{path_parameters}/index.json"
 
     try:
         response = requests.get(url)
@@ -68,11 +56,15 @@ def get_discount_rate(
         data = response.json()
 
         # 割引率の計算
-        for price_data in data["regions"][region.value].values():
-            original_price = float(price_data["fargate:PricePerUnit"])
-            savings_plan_price = float(price_data["price"])
-            discount_rate = 1 - (savings_plan_price / original_price)
-            return round(discount_rate, 4)
+        ret = {}
+        for key, value in data["regions"][region.value].items():
+            discount_rate = 1 - (
+                float(value["price"]) / float(value["fargate:PricePerUnit"])
+            )
+            ret[key] = round(discount_rate, 4)
+
+        if ret:
+            return ret
 
         console.print("[yellow]割引率が見つかりませんでした。[/yellow]")
         return None
