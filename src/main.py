@@ -353,7 +353,6 @@ def all(
 
 @app.command()
 def amazon_ec2_discount_rate(
-    # instance_type: str = typer.Argument(..., help="EC2インスタンスタイプ"),
     term: AmazonEc2Term = typer.Option(AmazonEc2Term.ONE_YEAR, help="契約期間"),
     payment_option: AmazonEc2PaymentOption = typer.Option(
         AmazonEc2PaymentOption.PARTIAL_UPFRONT, help="支払いオプション"
@@ -367,12 +366,24 @@ def amazon_ec2_discount_rate(
     tenancy: AmazonEc2Tenancy = typer.Option(
         AmazonEc2Tenancy.SHARED, help="テナンシー"
     ),
+    instance_type: str = typer.Option(
+        None,
+        help="EC2インスタンスタイプ（指定しない場合は全インスタンスタイプの割引率を表示）",
+    ),
 ):
     """
-    Savings Plansの割引率を取得する
+    EC2 Savings Plansの割引率を取得する
+
+    Args:
+        term: 契約期間
+        payment_option: 支払いオプション
+        region: リージョン
+        operating_system: オペレーティングシステム
+        tenancy: テナンシー
+        instance_type: EC2インスタンスタイプ（オプション）
     """
     discount_rate = get_amazon_ec2_discount_rate(
-        # instance_type=instance_type,
+        instance_type=instance_type,
         term=term,
         payment_option=payment_option,
         region=region,

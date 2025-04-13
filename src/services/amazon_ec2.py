@@ -15,6 +15,7 @@ def get_discount_rate(
     region: Region = Region.ASIA_PACIFIC_TOKYO,
     operating_system: OperatingSystem = OperatingSystem.LINUX,
     tenancy: Tenancy = Tenancy.SHARED,
+    instance_type: str = None,
 ) -> Dict[str, float]:
     """
     AWS EC2インスタンスのSavings Plans割引率を取得します。
@@ -63,6 +64,9 @@ def get_discount_rate(
         # 割引率の計算
         ret = {}
         for key, value in data["regions"][region.value].items():
+            if instance_type and value["ec2:InstanceType"] != instance_type:
+                continue
+
             discount_rate = 1 - (
                 float(value["price"]) / float(value["ec2:PricePerUnit"])
             )
