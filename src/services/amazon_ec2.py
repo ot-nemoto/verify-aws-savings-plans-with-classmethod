@@ -1,4 +1,5 @@
-from typing import Optional
+import json
+from typing import Dict
 from urllib.parse import quote
 
 import requests
@@ -10,13 +11,12 @@ console = Console()
 
 
 def get_discount_rate(
-    instance_type: str,
     term: Term = Term.ONE_YEAR,
     payment_option: PaymentOption = PaymentOption.NO_UPFRONT,
     region: Region = Region.ASIA_PACIFIC_TOKYO,
     operating_system: OperatingSystem = OperatingSystem.LINUX,
     tenancy: Tenancy = Tenancy.SHARED,
-) -> Optional[float]:
+) -> Dict[str, float]:
     """
     AWS EC2インスタンスのSavings Plans割引率を取得します。
 
@@ -43,47 +43,38 @@ def get_discount_rate(
         - インスタンスタイプが見つからない場合はNoneを返します
         - APIリクエストに失敗した場合はNoneを返します
     """
-    # URLのパラメータを設定
-    params = {
-        "term": term.value,
-        "payment_option": payment_option.value,
-        "region": region.value,
-        "os": operating_system.value,
-        "tenancy": tenancy.value,
-    }
-
-    # パラメータをエンコード
-    encoded_params = {k: quote(v) for k, v in params.items()}
-
+    # APIのURLを構築
     base_url = "https://b0.p.awsstatic.com/pricing/2.0/meteredUnitMaps/computesavingsplan/USD/current/compute-savings-plan-ec2"
-    path = "/".join(
+    path_parameters = "/".join(
         [
-            encoded_params["term"],
-            encoded_params["payment_option"],
-            encoded_params["region"],
-            encoded_params["os"],
-            encoded_params["tenancy"],
-            "index.json",
+            quote(term.value),
+            quote(payment_option.value),
+            quote(region.value),
+            quote(operating_system.value),
+            quote(tenancy.value),
         ]
     )
-    url = f"{base_url}/{path}"
+    url = f"{base_url}/{path_parameters}/index.json"
 
     try:
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
 
-        # インスタンスタイプの検索
-        for instance_data in data["regions"][region.value].values():
-            if instance_data["ec2:InstanceType"] == instance_type:
-                original_price = float(instance_data["ec2:PricePerUnit"])
-                savings_plan_price = float(instance_data["price"])
-                discount_rate = 1 - (savings_plan_price / original_price)
-                return round(discount_rate, 4)
+        print(json.dumps(data, indent=4))
 
-        console.print(
-            f"[yellow]インスタンスタイプ {instance_type} の割引率が見つかりませんでした。[/yellow]"
-        )
+        # 割引率の計算
+        ret = {}
+        for key, value in data["regions"][region.value].items():
+            discount_rate = 1 - (
+                float(value["price"]) / float(value["ec2:PricePerUnit"])
+            )
+            ret[key] = round(discount_rate, 4)
+
+        if ret:
+            return ret
+
+        console.print("[yellow]割引率が見つかりませんでした。[/yellow]")
         return None
 
     except Exception as e:

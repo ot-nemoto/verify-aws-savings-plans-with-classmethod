@@ -37,7 +37,7 @@ def get_discount_rate(
     Returns:
         Optional[float]: 割引率（0.0-1.0の範囲）またはNone（取得失敗時）
     """
-    # URLを設定
+    # APIのURLを構築
     base_url = "https://b0.p.awsstatic.com/pricing/2.0/meteredUnitMaps/computesavingsplan/USD/current/compute-savings-plan-fargate-with-arm"
     path_parameters = "/".join(
         [

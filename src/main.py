@@ -353,7 +353,7 @@ def all(
 
 @app.command()
 def amazon_ec2_discount_rate(
-    instance_type: str = typer.Argument(..., help="EC2インスタンスタイプ"),
+    # instance_type: str = typer.Argument(..., help="EC2インスタンスタイプ"),
     term: AmazonEc2Term = typer.Option(AmazonEc2Term.ONE_YEAR, help="契約期間"),
     payment_option: AmazonEc2PaymentOption = typer.Option(
         AmazonEc2PaymentOption.PARTIAL_UPFRONT, help="支払いオプション"
@@ -372,7 +372,7 @@ def amazon_ec2_discount_rate(
     Savings Plansの割引率を取得する
     """
     discount_rate = get_amazon_ec2_discount_rate(
-        instance_type=instance_type,
+        # instance_type=instance_type,
         term=term,
         payment_option=payment_option,
         region=region,
@@ -381,14 +381,15 @@ def amazon_ec2_discount_rate(
     )
 
     if discount_rate is not None:
-        console.print(
-            f"[green]割引率:[/green] {discount_rate:.4f} ({discount_rate:.2%})"
-        )
+        console.print(f"[blue]リージョン:[/blue] {region.value}")
         console.print(f"[blue]契約期間:[/blue] {term.value}")
         console.print(f"[blue]支払いオプション:[/blue] {payment_option.value}")
-        console.print(f"[blue]リージョン:[/blue] {region.value}")
         console.print(f"[blue]OS:[/blue] {operating_system.value}")
         console.print(f"[blue]テナンシー:[/blue] {tenancy.value}")
+
+        for key, value in discount_rate.items():
+            console.print(f"[green]{key}:[/green] {value:.4f} ({value:.2%})")
+
     else:
         console.print("[red]割引率の取得に失敗しました。[/red]")
 
