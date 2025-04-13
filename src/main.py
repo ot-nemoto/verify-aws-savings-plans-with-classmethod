@@ -22,7 +22,23 @@ from enums.amazon_ec2 import (
 from enums.amazon_ec2 import (
     Term as AmazonEc2Term,
 )
+from enums.aws_fargate import (
+    CPUArchitecture as AmazonFargateCPUArchitecture,
+)
+from enums.aws_fargate import (
+    OperatingSystem as AmazonFargateOperatingSystem,
+)
+from enums.aws_fargate import (
+    PaymentOption as AmazonFargatePaymentOption,
+)
+from enums.aws_fargate import (
+    Region as AmazonFargateRegion,
+)
+from enums.aws_fargate import (
+    Term as AmazonFargateTerm,
+)
 from services.amazon_ec2 import get_discount_rate as get_amazon_ec2_discount_rate
+from services.aws_fargate import get_discount_rate as get_aws_fargate_discount_rate
 
 app = typer.Typer()
 console = Console()
@@ -361,10 +377,48 @@ def amazon_ec2_discount_rate(
         console.print(f"[blue]契約期間:[/blue] {term.value}")
         console.print(f"[blue]支払いオプション:[/blue] {payment_option.value}")
         console.print(f"[blue]リージョン:[/blue] {region.value}")
-        console.print(
-            f"[blue]オペレーティングシステム:[/blue] {operating_system.value}"
-        )
+        console.print(f"[blue]OS:[/blue] {operating_system.value}")
         console.print(f"[blue]テナンシー:[/blue] {tenancy.value}")
+    else:
+        console.print("[red]割引率の取得に失敗しました。[/red]")
+
+
+@app.command()
+def amazon_fargate_discount_rate(
+    term: AmazonFargateTerm = typer.Option(AmazonFargateTerm.ONE_YEAR, help="契約期間"),
+    payment_option: AmazonFargatePaymentOption = typer.Option(
+        AmazonFargatePaymentOption.PARTIAL_UPFRONT, help="支払いオプション"
+    ),
+    region: AmazonFargateRegion = typer.Option(
+        AmazonFargateRegion.ASIA_PACIFIC_TOKYO, help="リージョン"
+    ),
+    operating_system: AmazonFargateOperatingSystem = typer.Option(
+        AmazonFargateOperatingSystem.LINUX, help="オペレーティングシステム"
+    ),
+    cpu_architecture: AmazonFargateCPUArchitecture = typer.Option(
+        AmazonFargateCPUArchitecture.X86, help="CPUアーキテクチャ"
+    ),
+):
+    """
+    Fargate Savings Plansの割引率を取得する
+    """
+    discount_rate = get_aws_fargate_discount_rate(
+        term=term,
+        payment_option=payment_option,
+        region=region,
+        operating_system=operating_system,
+        cpu_architecture=cpu_architecture,
+    )
+
+    if discount_rate is not None:
+        console.print(
+            f"[green]割引率:[/green] {discount_rate:.4f} ({discount_rate:.2%})"
+        )
+        console.print(f"[blue]契約期間:[/blue] {term.value}")
+        console.print(f"[blue]支払いオプション:[/blue] {payment_option.value}")
+        console.print(f"[blue]リージョン:[/blue] {region.value}")
+        console.print(f"[blue]OS:[/blue] {operating_system.value}")
+        console.print(f"[blue]CPUアーキテクチャ:[/blue] {cpu_architecture.value}")
     else:
         console.print("[red]割引率の取得に失敗しました。[/red]")
 
