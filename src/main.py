@@ -492,9 +492,6 @@ def all(
         ...,
         help="CSVファイルのパス（複数指定可、ワイルドカード使用可）",
     ),
-    output_dir: str = typer.Option(
-        None, help="出力ディレクトリのパス（指定しない場合は表示のみ）"
-    ),
     negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
     only_negation: bool = typer.Option(
         False, help="SavingsPlanNegationのみを抽出するかどうか"
@@ -509,7 +506,6 @@ def all(
 
     Args:
         csv_files: CSVファイルのパス（複数指定可、ワイルドカード使用可）
-        output_dir: 出力ディレクトリのパス（指定しない場合は表示のみ）
         negation: SavingsPlanNegationを含めるかどうか
         only_negation: SavingsPlanNegationのみを抽出するかどうか
         group_by: グループ化のキー
