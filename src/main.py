@@ -245,6 +245,9 @@ def aws_fargate(
         help="CSVファイルのパス（複数指定可、ワイルドカード使用可）",
     ),
     negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
+    only_negation: bool = typer.Option(
+        False, help="SavingsPlanNegationのみを抽出するかどうか"
+    ),
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
@@ -256,6 +259,7 @@ def aws_fargate(
     Args:
         csv_files: CSVファイルのパス（複数指定可、ワイルドカード使用可）
         negation: SavingsPlanNegationを含めるかどうか
+        only_negation: SavingsPlanNegationのみを抽出するかどうか
         group_by: グループ化のキー
         markdown: markdown形式で出力するかどうか
     """
@@ -277,8 +281,21 @@ def aws_fargate(
     all_data = []
     for csv_file in expanded_files:
         # グループ化を適用せずにデータを取得
-        df = get_usage_data(csv_file, "Fargate", negation, None)
+        df = get_usage_data(csv_file, "Fargate", True, None)  # negationを常にTrueに設定
         if not df.empty:
+            # only_negationが指定されている場合は、SavingsPlanNegationのみをフィルタリング
+            if only_negation:
+                df = df[
+                    df["item_description"].str.contains(
+                        "SavingsPlanNegation", case=False, na=False
+                    )
+                ]
+            elif not negation:
+                df = df[
+                    ~df["item_description"].str.contains(
+                        "SavingsPlanNegation", case=False, na=False
+                    )
+                ]
             all_data.append(df)
 
     if not all_data:
@@ -310,6 +327,9 @@ def amazon_ec2(
         help="CSVファイルのパス（複数指定可、ワイルドカード使用可）",
     ),
     negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
+    only_negation: bool = typer.Option(
+        False, help="SavingsPlanNegationのみを抽出するかどうか"
+    ),
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
@@ -321,6 +341,7 @@ def amazon_ec2(
     Args:
         csv_files: CSVファイルのパス（複数指定可、ワイルドカード使用可）
         negation: SavingsPlanNegationを含めるかどうか
+        only_negation: SavingsPlanNegationのみを抽出するかどうか
         group_by: グループ化のキー
         markdown: markdown形式で出力するかどうか
     """
@@ -342,8 +363,21 @@ def amazon_ec2(
     all_data = []
     for csv_file in expanded_files:
         # グループ化を適用せずにデータを取得
-        df = get_usage_data(csv_file, "Box", negation, None)
+        df = get_usage_data(csv_file, "Box", True, None)  # negationを常にTrueに設定
         if not df.empty:
+            # only_negationが指定されている場合は、SavingsPlanNegationのみをフィルタリング
+            if only_negation:
+                df = df[
+                    df["item_description"].str.contains(
+                        "SavingsPlanNegation", case=False, na=False
+                    )
+                ]
+            elif not negation:
+                df = df[
+                    ~df["item_description"].str.contains(
+                        "SavingsPlanNegation", case=False, na=False
+                    )
+                ]
             all_data.append(df)
 
     if not all_data:
@@ -375,6 +409,9 @@ def aws_lambda(
         help="CSVファイルのパス（複数指定可、ワイルドカード使用可）",
     ),
     negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
+    only_negation: bool = typer.Option(
+        False, help="SavingsPlanNegationのみを抽出するかどうか"
+    ),
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
@@ -386,6 +423,7 @@ def aws_lambda(
     Args:
         csv_files: CSVファイルのパス（複数指定可、ワイルドカード使用可）
         negation: SavingsPlanNegationを含めるかどうか
+        only_negation: SavingsPlanNegationのみを抽出するかどうか
         group_by: グループ化のキー
         markdown: markdown形式で出力するかどうか
     """
@@ -407,8 +445,23 @@ def aws_lambda(
     all_data = []
     for csv_file in expanded_files:
         # グループ化を適用せずにデータを取得
-        df = get_usage_data(csv_file, "Lambda-GB", negation, None)
+        df = get_usage_data(
+            csv_file, "Lambda-GB", True, None
+        )  # negationを常にTrueに設定
         if not df.empty:
+            # only_negationが指定されている場合は、SavingsPlanNegationのみをフィルタリング
+            if only_negation:
+                df = df[
+                    df["item_description"].str.contains(
+                        "SavingsPlanNegation", case=False, na=False
+                    )
+                ]
+            elif not negation:
+                df = df[
+                    ~df["item_description"].str.contains(
+                        "SavingsPlanNegation", case=False, na=False
+                    )
+                ]
             all_data.append(df)
 
     if not all_data:
