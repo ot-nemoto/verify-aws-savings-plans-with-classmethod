@@ -1,4 +1,5 @@
 import calendar
+import glob
 from enum import Enum
 from typing import List, Union
 
@@ -170,6 +171,9 @@ def get_usage_data(
             ]
             filtered_df = filtered_df[selected_columns]
 
+            # cost列を数値型に変換
+            filtered_df["cost"] = pd.to_numeric(filtered_df["cost"], errors="coerce")
+
             # グループ化の処理
             if group_by:
                 group_keys = ["aws_account_id"]
@@ -194,11 +198,6 @@ def get_usage_data(
                 sort_keys.append("item_description")
             if sort_keys:
                 filtered_df = filtered_df.sort_values(sort_keys)
-
-            # cost列のフォーマットを修正
-            filtered_df["cost"] = filtered_df["cost"].apply(
-                lambda x: f"{x:.10f}".rstrip("0").rstrip(".")
-            )
 
             return filtered_df
         else:
@@ -225,6 +224,10 @@ def display_usage(df: pd.DataFrame, title: str, markdown: bool = False):
     # 結果の表示
     console.print(f"[green]抽出された行数:[/green] {len(df)}")
 
+    # cost列の表示形式を設定
+    if "cost" in df.columns:
+        df["cost"] = df["cost"].apply(lambda x: f"{x:.10f}".rstrip("0").rstrip("."))
+
     # テーブルを作成して表示
     if markdown:
         markdown_table = create_usage_table(df, title, markdown=True)
@@ -237,9 +240,9 @@ def display_usage(df: pd.DataFrame, title: str, markdown: bool = False):
 
 @app.command()
 def aws_fargate(
-    csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
-    output_file: str = typer.Option(
-        None, help="出力ファイルのパス（指定しない場合は表示のみ）"
+    csv_files: List[str] = typer.Argument(
+        ...,
+        help="CSVファイルのパス（複数指定可、ワイルドカード使用可）",
     ),
     negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
     group_by: List[GroupBy] = typer.Option(
@@ -249,22 +252,62 @@ def aws_fargate(
 ):
     """
     CSVファイルを読み込み、usage_typeにFargateが含まれる行を抽出します
-    """
-    title = "Fargate使用状況"
-    df = get_usage_data(csv_file, "Fargate", negation, group_by)
 
-    if output_file:
-        df.to_csv(output_file, index=False)
-        console.print(f"[green]結果を保存しました:[/green] {output_file}")
-    else:
-        display_usage(df, title, markdown)
+    Args:
+        csv_files: CSVファイルのパス（複数指定可、ワイルドカード使用可）
+        negation: SavingsPlanNegationを含めるかどうか
+        group_by: グループ化のキー
+        markdown: markdown形式で出力するかどうか
+    """
+    # ワイルドカードを展開してファイルリストを作成
+    expanded_files = []
+    for pattern in csv_files:
+        matched_files = glob.glob(pattern)
+        if not matched_files:
+            console.print(
+                f"[yellow]警告: パターン '{pattern}' に一致するファイルが見つかりませんでした。[/yellow]"
+            )
+        expanded_files.extend(matched_files)
+
+    if not expanded_files:
+        console.print("[red]有効なファイルが見つかりませんでした。[/red]")
+        return
+
+    # 複数のCSVファイルを結合
+    all_data = []
+    for csv_file in expanded_files:
+        # グループ化を適用せずにデータを取得
+        df = get_usage_data(csv_file, "Fargate", negation, None)
+        if not df.empty:
+            all_data.append(df)
+
+    if not all_data:
+        console.print("[red]有効なデータが見つかりませんでした。[/red]")
+        return
+
+    # データフレームを結合
+    combined_df = pd.concat(all_data, ignore_index=True)
+
+    # 結合したデータに対してグループ化を適用
+    if group_by:
+        group_keys = ["aws_account_id"]
+        if GroupBy.MONTH in group_by:
+            group_keys.append("month")
+        if GroupBy.USAGE_TYPE in group_by:
+            group_keys.append("usage_type")
+        if GroupBy.ITEM_DESCRIPTION in group_by:
+            group_keys.append("item_description")
+
+        combined_df = combined_df.groupby(group_keys)["cost"].sum().reset_index()
+
+    display_usage(combined_df, "Fargate使用状況", markdown)
 
 
 @app.command()
 def amazon_ec2(
-    csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
-    output_file: str = typer.Option(
-        None, help="出力ファイルのパス（指定しない場合は表示のみ）"
+    csv_files: List[str] = typer.Argument(
+        ...,
+        help="CSVファイルのパス（複数指定可、ワイルドカード使用可）",
     ),
     negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
     group_by: List[GroupBy] = typer.Option(
@@ -274,22 +317,62 @@ def amazon_ec2(
 ):
     """
     CSVファイルを読み込み、usage_typeにBoxが含まれる行を抽出します
-    """
-    title = "EC2使用状況"
-    df = get_usage_data(csv_file, "Box", negation, group_by)
 
-    if output_file:
-        df.to_csv(output_file, index=False)
-        console.print(f"[green]結果を保存しました:[/green] {output_file}")
-    else:
-        display_usage(df, title, markdown)
+    Args:
+        csv_files: CSVファイルのパス（複数指定可、ワイルドカード使用可）
+        negation: SavingsPlanNegationを含めるかどうか
+        group_by: グループ化のキー
+        markdown: markdown形式で出力するかどうか
+    """
+    # ワイルドカードを展開してファイルリストを作成
+    expanded_files = []
+    for pattern in csv_files:
+        matched_files = glob.glob(pattern)
+        if not matched_files:
+            console.print(
+                f"[yellow]警告: パターン '{pattern}' に一致するファイルが見つかりませんでした。[/yellow]"
+            )
+        expanded_files.extend(matched_files)
+
+    if not expanded_files:
+        console.print("[red]有効なファイルが見つかりませんでした。[/red]")
+        return
+
+    # 複数のCSVファイルを結合
+    all_data = []
+    for csv_file in expanded_files:
+        # グループ化を適用せずにデータを取得
+        df = get_usage_data(csv_file, "Box", negation, None)
+        if not df.empty:
+            all_data.append(df)
+
+    if not all_data:
+        console.print("[red]有効なデータが見つかりませんでした。[/red]")
+        return
+
+    # データフレームを結合
+    combined_df = pd.concat(all_data, ignore_index=True)
+
+    # 結合したデータに対してグループ化を適用
+    if group_by:
+        group_keys = ["aws_account_id"]
+        if GroupBy.MONTH in group_by:
+            group_keys.append("month")
+        if GroupBy.USAGE_TYPE in group_by:
+            group_keys.append("usage_type")
+        if GroupBy.ITEM_DESCRIPTION in group_by:
+            group_keys.append("item_description")
+
+        combined_df = combined_df.groupby(group_keys)["cost"].sum().reset_index()
+
+    display_usage(combined_df, "EC2使用状況", markdown)
 
 
 @app.command()
 def aws_lambda(
-    csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
-    output_file: str = typer.Option(
-        None, help="出力ファイルのパス（指定しない場合は表示のみ）"
+    csv_files: List[str] = typer.Argument(
+        ...,
+        help="CSVファイルのパス（複数指定可、ワイルドカード使用可）",
     ),
     negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
     group_by: List[GroupBy] = typer.Option(
@@ -299,15 +382,55 @@ def aws_lambda(
 ):
     """
     CSVファイルを読み込み、usage_typeにLambda-GBが含まれる行を抽出します
-    """
-    title = "Lambda使用状況"
-    df = get_usage_data(csv_file, "Lambda-GB", negation, group_by)
 
-    if output_file:
-        df.to_csv(output_file, index=False)
-        console.print(f"[green]結果を保存しました:[/green] {output_file}")
-    else:
-        display_usage(df, title, markdown)
+    Args:
+        csv_files: CSVファイルのパス（複数指定可、ワイルドカード使用可）
+        negation: SavingsPlanNegationを含めるかどうか
+        group_by: グループ化のキー
+        markdown: markdown形式で出力するかどうか
+    """
+    # ワイルドカードを展開してファイルリストを作成
+    expanded_files = []
+    for pattern in csv_files:
+        matched_files = glob.glob(pattern)
+        if not matched_files:
+            console.print(
+                f"[yellow]警告: パターン '{pattern}' に一致するファイルが見つかりませんでした。[/yellow]"
+            )
+        expanded_files.extend(matched_files)
+
+    if not expanded_files:
+        console.print("[red]有効なファイルが見つかりませんでした。[/red]")
+        return
+
+    # 複数のCSVファイルを結合
+    all_data = []
+    for csv_file in expanded_files:
+        # グループ化を適用せずにデータを取得
+        df = get_usage_data(csv_file, "Lambda-GB", negation, None)
+        if not df.empty:
+            all_data.append(df)
+
+    if not all_data:
+        console.print("[red]有効なデータが見つかりませんでした。[/red]")
+        return
+
+    # データフレームを結合
+    combined_df = pd.concat(all_data, ignore_index=True)
+
+    # 結合したデータに対してグループ化を適用
+    if group_by:
+        group_keys = ["aws_account_id"]
+        if GroupBy.MONTH in group_by:
+            group_keys.append("month")
+        if GroupBy.USAGE_TYPE in group_by:
+            group_keys.append("usage_type")
+        if GroupBy.ITEM_DESCRIPTION in group_by:
+            group_keys.append("item_description")
+
+        combined_df = combined_df.groupby(group_keys)["cost"].sum().reset_index()
+
+    display_usage(combined_df, "Lambda使用状況", markdown)
 
 
 @app.command()
