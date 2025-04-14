@@ -488,11 +488,17 @@ def aws_lambda(
 
 @app.command()
 def all(
-    csv_file: str = typer.Argument(..., help="CSVファイルのパス"),
+    csv_files: List[str] = typer.Argument(
+        ...,
+        help="CSVファイルのパス（複数指定可、ワイルドカード使用可）",
+    ),
     output_dir: str = typer.Option(
         None, help="出力ディレクトリのパス（指定しない場合は表示のみ）"
     ),
     negation: bool = typer.Option(True, help="SavingsPlanNegationを含めるかどうか"),
+    only_negation: bool = typer.Option(
+        False, help="SavingsPlanNegationのみを抽出するかどうか"
+    ),
     group_by: List[GroupBy] = typer.Option(
         None, help="グループ化のキー（usage_type, item_description）"
     ),
@@ -500,36 +506,31 @@ def all(
 ):
     """
     CSVファイルを読み込み、Fargate、EC2、Lambdaの使用状況を一気に抽出します
+
+    Args:
+        csv_files: CSVファイルのパス（複数指定可、ワイルドカード使用可）
+        output_dir: 出力ディレクトリのパス（指定しない場合は表示のみ）
+        negation: SavingsPlanNegationを含めるかどうか
+        only_negation: SavingsPlanNegationのみを抽出するかどうか
+        group_by: グループ化のキー
+        markdown: markdown形式で出力するかどうか
     """
-    # Fargateの抽出
-    fargate_output = f"{output_dir}/fargate_usage.csv" if output_dir else None
-    fargate_title = "Fargate使用状況"
-    fargate_df = get_usage_data(csv_file, "Fargate", negation, group_by)
-    if fargate_output:
-        fargate_df.to_csv(fargate_output, index=False)
-        console.print(f"[green]Fargateの結果を保存しました:[/green] {fargate_output}")
-    else:
-        display_usage(fargate_df, fargate_title, markdown)
+    # 各サービスの処理を実行
+    services = [
+        ("Fargate", aws_fargate),
+        ("EC2", amazon_ec2),
+        ("Lambda", aws_lambda),
+    ]
 
-    # EC2の抽出
-    ec2_output = f"{output_dir}/ec2_usage.csv" if output_dir else None
-    ec2_title = "EC2使用状況"
-    ec2_df = get_usage_data(csv_file, "Box", negation, group_by)
-    if ec2_output:
-        ec2_df.to_csv(ec2_output, index=False)
-        console.print(f"[green]EC2の結果を保存しました:[/green] {ec2_output}")
-    else:
-        display_usage(ec2_df, ec2_title, markdown)
-
-    # Lambdaの抽出
-    lambda_output = f"{output_dir}/lambda_usage.csv" if output_dir else None
-    lambda_title = "Lambda使用状況"
-    lambda_df = get_usage_data(csv_file, "Lambda-GB", negation, group_by)
-    if lambda_output:
-        lambda_df.to_csv(lambda_output, index=False)
-        console.print(f"[green]Lambdaの結果を保存しました:[/green] {lambda_output}")
-    else:
-        display_usage(lambda_df, lambda_title, markdown)
+    for service_name, command_func in services:
+        console.print(f"\n[bold]{service_name}の処理を開始します[/bold]")
+        command_func(
+            csv_files=csv_files,
+            negation=negation,
+            only_negation=only_negation,
+            group_by=group_by,
+            markdown=markdown,
+        )
 
 
 @app.command()
