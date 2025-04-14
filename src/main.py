@@ -57,6 +57,7 @@ console = Console()
 class GroupBy(str, Enum):
     USAGE_TYPE = "usage_type"
     ITEM_DESCRIPTION = "item_description"
+    MONTH = "month"
 
 
 def get_days_in_month(month_str: str) -> int:
@@ -129,7 +130,7 @@ def get_usage_data(
         csv_file (str): CSVファイルのパス
         usage_type (str): 抽出するusage_type
         negation (bool, optional): SavingsPlanNegationを含めるかどうか
-        group_by (List[GroupBy], optional): グループ化のキー（usage_type, item_description）
+        group_by (List[GroupBy], optional): グループ化のキー（usage_type, item_description, month）
 
     Returns:
         pd.DataFrame: 使用状況データ
@@ -171,7 +172,9 @@ def get_usage_data(
 
             # グループ化の処理
             if group_by:
-                group_keys = ["aws_account_id", "month"]
+                group_keys = ["aws_account_id"]
+                if GroupBy.MONTH in group_by:
+                    group_keys.append("month")
                 if GroupBy.USAGE_TYPE in group_by:
                     group_keys.append("usage_type")
                 if GroupBy.ITEM_DESCRIPTION in group_by:
@@ -183,6 +186,8 @@ def get_usage_data(
 
             # ソートキーの列が存在する場合のみソート
             sort_keys = []
+            if "month" in filtered_df.columns:
+                sort_keys.append("month")
             if "usage_type" in filtered_df.columns:
                 sort_keys.append("usage_type")
             if "item_description" in filtered_df.columns:
